@@ -1,0 +1,214 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>PageSpark — Discover Books</title>
+    <link rel="preconnect" href="https://fonts.googleapis.com">
+    <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+    <link href="https://fonts.googleapis.com/css2?family=Outfit:wght@300;400;500;600;700;800&display=swap" rel="stylesheet">
+    <link rel="stylesheet" href="style.css?v=3">
+    <script src="https://unpkg.com/lucide@latest"></script>
+</head>
+<body>
+    <div class="background-effects" aria-hidden="true">
+        <div class="blob blob-1"></div>
+        <div class="blob blob-2"></div>
+        <div class="blob blob-3"></div>
+    </div>
+
+    <!-- Top Navigation -->
+    <nav class="topnav glass-panel">
+        <div class="nav-left">
+            <div class="logo-icon-sm"><i data-lucide="book-open-text"></i></div>
+            <span class="nav-brand">PageSpark</span>
+        </div>
+        <div class="nav-right">
+            <span class="nav-greeting" id="nav-greeting"></span>
+            <button class="btn-primary btn-sm" id="library-btn" onclick="openLibraryModal()" style="display: flex; align-items: center; gap: 0.5rem; background: var(--accent-gradient); border: none; padding: 0.5rem 1rem; font-weight: 500; font-size: 0.85rem;"><i data-lucide="heart" style="width: 14px; height: 14px; fill: white;"></i> My Library</button>
+            <button class="btn-ghost btn-sm" onclick="document.getElementById('change-pw-modal').classList.remove('hidden')" title="Đổi mật khẩu"><i data-lucide="key"></i></button>
+            <button class="btn-ghost btn-sm" id="logout-btn"><i data-lucide="log-out"></i> Logout</button>
+        </div>
+    </nav>
+
+    <main class="container app-main">
+        <header class="header">
+            <h1 class="page-title">Discover Your Next Read</h1>
+            <p class="subtitle">Describe the kind of book you're looking for and let AI do the rest.</p>
+        </header>
+
+        <!-- Search Panel -->
+        <section class="search-section glass-panel">
+            <form id="search-form" novalidate onsubmit="return false;">
+                <div class="input-group">
+                    <label for="description"><i data-lucide="sparkles"></i> What are you looking for?</label>
+                    <div class="textarea-wrapper">
+                        <textarea id="description" placeholder="E.g., A magical fantasy with a female lead who discovers hidden powers in a steampunk Victorian world..." required maxlength="500"></textarea>
+                        <div class="char-count"><span id="char-counter">0</span>/500</div>
+                    </div>
+                    <div class="example-chips">
+                        <span class="chip-label">Try:</span>
+                        <button type="button" class="example-chip" data-text="A thrilling mystery novel set in Victorian London with a clever detective">Victorian mystery</button>
+                        <button type="button" class="example-chip" data-text="A romance story about second chances and finding love after heartbreak">Second chance romance</button>
+                        <button type="button" class="example-chip" data-text="Science fiction about artificial intelligence and the future of humanity">AI & Future</button>
+                        <button type="button" class="example-chip" data-text="A self-help book about productivity habits and achieving success">Productivity</button>
+                    </div>
+                </div>
+
+                <div class="filters-row">
+                    <div class="filter-group">
+                        <label for="genre-filter"><i data-lucide="tag"></i> Genre</label>
+                        <div class="select-wrapper">
+                            <select id="genre-filter"><option value="">All Genres</option></select>
+                            <i data-lucide="chevron-down" class="select-arrow"></i>
+                        </div>
+                    </div>
+                    <div class="filter-group">
+                        <label for="min-rating"><i data-lucide="star"></i> Min Rating: <span id="rating-display" class="accent-text">Any</span></label>
+                        <input type="range" id="min-rating" min="0" max="5" step="0.5" value="0">
+                    </div>
+                    <div class="filter-group">
+                        <label for="top_n"><i data-lucide="list"></i> Results: <span id="top-n-display" class="accent-text">5</span></label>
+                        <input type="range" id="top_n" min="1" max="50" value="5">
+                    </div>
+                </div>
+
+                <div class="form-footer">
+                    <button type="button" id="clear-btn" class="btn-ghost"><i data-lucide="x"></i> Clear</button>
+                    <button type="submit" class="btn-primary" id="search-btn"><i data-lucide="search"></i><span>Find Books</span></button>
+                </div>
+            </form>
+        </section>
+
+        <!-- Results -->
+        <section class="results-section">
+            <div id="loading" class="loading-state hidden">
+                <div class="loading-visual"><div class="book-loader"><div class="page page-1"></div><div class="page page-2"></div><div class="page page-3"></div></div></div>
+                <p class="loading-text">Analyzing your request<span class="dots"><span>.</span><span>.</span><span>.</span></span></p>
+            </div>
+            <div id="error-message" class="hidden error-toast">
+                <i data-lucide="alert-circle"></i>
+                <div><strong>Error</strong><p id="error-text"></p></div>
+                <button class="error-close" id="error-close"><i data-lucide="x"></i></button>
+            </div>
+            <div id="results-header" class="results-header hidden">
+                <div class="results-meta">
+                    <span id="results-count" class="results-count"></span>
+                    <span id="results-query" class="results-query"></span>
+                </div>
+                <div class="sort-controls">
+                    <label for="sort-select">Sort:</label>
+                    <div class="select-wrapper small">
+                        <select id="sort-select">
+                            <option value="score">Best Match</option>
+                            <option value="rating">Highest Rating</option>
+                            <option value="title">Title A-Z</option>
+                        </select>
+                        <i data-lucide="chevron-down" class="select-arrow"></i>
+                    </div>
+                </div>
+            </div>
+            <div id="results-grid" class="results-grid"></div>
+            <div id="empty-state" class="empty-state">
+                <div class="empty-icon"><i data-lucide="book-marked"></i></div>
+                <h2>Your next great read awaits</h2>
+                <p>Describe the kind of book you're in the mood for and our AI will find the perfect match.</p>
+            </div>
+        </section>
+    </main>
+
+    <div id="book-modal" class="modal-backdrop hidden">
+        <div class="modal-panel glass-panel">
+            <button class="modal-close" id="modal-close"><i data-lucide="x"></i></button>
+            <div id="modal-content"></div>
+        </div>
+    </div>
+
+    <!-- Change Password Modal -->
+    <div id="change-pw-modal" class="modal-backdrop hidden">
+        <div class="modal-panel glass-panel" style="max-width: 400px; padding: 2rem;">
+            <h2 style="margin-bottom: 1rem; color: var(--text-color);">Đổi Mật Khẩu</h2>
+            <div class="field" style="margin-bottom: 1rem;">
+                <label style="color: var(--text-color);"><i data-lucide="lock"></i> Mật khẩu cũ (vd: 123456)</label>
+                <input type="password" id="old-pw" class="modal-input" style="width: 100%; padding: 0.75rem; border-radius: 8px; border: 1px solid var(--border-color); background: rgba(0,0,0,0.2); color: white;">
+            </div>
+            <div class="field" style="margin-bottom: 1rem;">
+                <label style="color: var(--text-color);"><i data-lucide="shield"></i> Mật khẩu mới</label>
+                <input type="password" id="new-pw" class="modal-input" style="width: 100%; padding: 0.75rem; border-radius: 8px; border: 1px solid var(--border-color); background: rgba(0,0,0,0.2); color: white;">
+            </div>
+            <div id="pw-error" class="form-error hidden" style="margin-bottom: 1rem; color: #ef4444; font-size: 0.9rem;"></div>
+            <div style="display: flex; gap: 1rem;">
+                <button class="btn-primary" onclick="submitChangePw()" style="flex: 1; justify-content: center;">Lưu</button>
+                <button class="btn-ghost" onclick="document.getElementById('change-pw-modal').classList.add('hidden')" style="flex: 1; justify-content: center; background: rgba(255,255,255,0.1);">Hủy</button>
+            </div>
+        </div>
+    </div>
+
+    <!-- My Library Modal -->
+    <div id="library-modal" class="modal-backdrop hidden">
+        <div class="modal-panel glass-panel" style="max-width: 700px; width: 90%; padding: 2rem;">
+            <button class="modal-close" onclick="closeLibraryModal()"><i data-lucide="x"></i></button>
+            <h2 style="margin-bottom: 0.5rem; color: var(--text-color); display: flex; align-items: center; gap: 0.5rem; font-size: 1.5rem;">
+                <i data-lucide="heart" style="color: #ef4444; fill: #ef4444;"></i> My Library & Profile
+            </h2>
+            <p class="subtitle" style="margin-bottom: 1.5rem; font-size: 0.9rem; color: var(--text-muted);">Your personalized dashboard and saved reading list.</p>
+            
+            <!-- User Stats -->
+            <div style="display: grid; grid-template-columns: 1fr 1fr; gap: 1rem; margin-bottom: 1.5rem;">
+                <div class="stat-card glass-panel" style="padding: 1rem; text-align: center; background: rgba(255,255,255,0.03);">
+                    <div style="font-size: 0.85rem; color: var(--text-muted);">Total AI Searches</div>
+                    <div id="user-stat-searches" style="font-size: 2rem; font-weight: 700; color: var(--accent-color); margin-top: 0.25rem;">0</div>
+                </div>
+                <div class="stat-card glass-panel" style="padding: 1rem; text-align: center; background: rgba(255,255,255,0.03);">
+                    <div style="font-size: 0.85rem; color: var(--text-muted);">Saved Favorites</div>
+                    <div id="user-stat-favorites" style="font-size: 2rem; font-weight: 700; color: #ef4444; margin-top: 0.25rem;">0</div>
+                </div>
+            </div>
+
+            <!-- Saved Books List -->
+            <h3 style="margin-bottom: 1rem; color: var(--text-color); font-size: 1.1rem; display: flex; align-items: center; gap: 0.5rem;">
+                <i data-lucide="bookmark"></i> Saved Books
+            </h3>
+            <div id="favorites-list-container" style="max-height: 280px; overflow-y: auto; display: flex; flex-direction: column; gap: 0.75rem; padding-right: 0.5rem;">
+                <div style="text-align: center; color: var(--text-muted); padding: 2rem 0;">No books saved yet. Click the heart icon on book cards to save them!</div>
+            </div>
+        </div>
+    </div>
+
+    <script src="script.js?v=3"></script>
+    <script>
+        lucide.createIcons();
+        
+        async function submitChangePw() {
+            const oldPw = document.getElementById('old-pw').value;
+            const newPw = document.getElementById('new-pw').value;
+            const errEl = document.getElementById('pw-error');
+            errEl.classList.add('hidden');
+            
+            if(!oldPw || !newPw || newPw.length < 4) {
+                errEl.textContent = 'Vui lòng nhập đủ (Mật khẩu mới >= 4 ký tự)';
+                errEl.classList.remove('hidden');
+                return;
+            }
+            try {
+                let API = 'http://localhost:8000';
+                if (window.location.hostname.includes('onrender.com') || window.location.port === '8000') { API = ''; }
+                const res = await fetch(`${API}/users/change-password`, {
+                    method: 'PUT',
+                    headers: { 'Content-Type': 'application/json' },
+                    body: JSON.stringify({ user_id: currentUser.id, old_password: oldPw, new_password: newPw })
+                });
+                const data = await res.json();
+                if(!res.ok) throw new Error(data.detail || 'Lỗi đổi mật khẩu');
+                
+                alert('Đổi mật khẩu thành công! Vui lòng đăng nhập lại.');
+                localStorage.removeItem('pagespark_user');
+                window.location.href = 'index.html';
+            } catch(err) {
+                errEl.textContent = err.message;
+                errEl.classList.remove('hidden');
+            }
+        }
+    </script>
+</body>
+</html>

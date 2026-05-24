@@ -1,0 +1,326 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>PageSpark — Admin</title>
+    <link rel="preconnect" href="https://fonts.googleapis.com">
+    <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+    <link href="https://fonts.googleapis.com/css2?family=Outfit:wght@300;400;500;600;700;800&display=swap" rel="stylesheet">
+    <link rel="stylesheet" href="style.css">
+    <script src="https://unpkg.com/lucide@latest"></script>
+    <script src="https://cdn.jsdelivr.net/npm/chart.js"></script>
+</head>
+<body>
+    <div class="background-effects" aria-hidden="true">
+        <div class="blob blob-1"></div><div class="blob blob-2"></div><div class="blob blob-3"></div>
+    </div>
+
+    <nav class="topnav glass-panel">
+        <div class="nav-left">
+            <div class="logo-icon-sm"><i data-lucide="book-open-text"></i></div>
+            <span class="nav-brand">PageSpark</span>
+            <span class="admin-badge">Admin</span>
+        </div>
+        <div class="nav-right">
+            <a href="app.html" class="btn-ghost btn-sm"><i data-lucide="search"></i> Search</a>
+            <button class="btn-ghost btn-sm" id="logout-btn"><i data-lucide="log-out"></i> Logout</button>
+        </div>
+    </nav>
+
+    <main class="container app-main">
+        <header class="header">
+            <h1 class="page-title">Admin</h1>
+            <p class="subtitle">Monitor users, search history, and system health.</p>
+        </header>
+
+        <!-- Stats Cards -->
+        <div class="stats-grid" id="stats-grid">
+            <div class="stat-card glass-panel">
+                <div class="stat-icon stat-blue"><i data-lucide="users"></i></div>
+                <div><p class="stat-value" id="stat-users">—</p><p class="stat-label">Total Users</p></div>
+            </div>
+            <div class="stat-card glass-panel">
+                <div class="stat-icon stat-green"><i data-lucide="user-check"></i></div>
+                <div><p class="stat-value" id="stat-active">—</p><p class="stat-label">Active Users</p></div>
+            </div>
+            <div class="stat-card glass-panel">
+                <div class="stat-icon stat-purple"><i data-lucide="search"></i></div>
+                <div><p class="stat-value" id="stat-searches">—</p><p class="stat-label">Total Searches</p></div>
+            </div>
+            <div class="stat-card glass-panel">
+                <div class="stat-icon stat-amber"><i data-lucide="book-open"></i></div>
+                <div><p class="stat-value" id="stat-books">—</p><p class="stat-label">Books Indexed</p></div>
+            </div>
+        </div>
+
+        <!-- Export & Charts Section -->
+        <div class="admin-actions glass-panel" style="margin-top: 1.5rem; padding: 1.5rem; display: flex; justify-content: space-between; align-items: center; gap: 2rem;">
+            <div style="flex: 1; min-width: 0;">
+                <canvas id="statsChart" style="max-height: 200px; width: 100%;"></canvas>
+            </div>
+            <div style="display: flex; flex-direction: column; gap: 1rem; min-width: 200px;">
+                <h3 style="margin-bottom: 0.5rem;">Data Export</h3>
+                <button class="btn-primary" onclick="exportCSV('users')" style="width: 100%; justify-content: center;">
+                    <i data-lucide="download"></i> Export Users (CSV)
+                </button>
+                <button class="btn-primary" onclick="exportCSV('history')" style="width: 100%; justify-content: center; background-color: var(--secondary-color);">
+                    <i data-lucide="download"></i> Export History (CSV)
+                </button>
+            </div>
+        </div>
+
+        <!-- Tabs -->
+        <div class="dash-tabs">
+            <button class="dash-tab active" onclick="showDashTab('users')">
+                <i data-lucide="users"></i> Users
+            </button>
+            <button class="dash-tab" onclick="showDashTab('history')">
+                <i data-lucide="clock"></i> Search History
+            </button>
+        </div>
+
+        <!-- Users Table -->
+        <div id="tab-users" class="dash-content glass-panel">
+            <div class="table-header">
+                <h3>Registered Users</h3>
+            </div>
+            <div class="table-wrapper">
+                <table class="data-table">
+                    <thead>
+                        <tr><th>ID</th><th>Username</th><th>Email</th><th>Role</th><th>Status</th><th>Joined</th><th>Action</th></tr>
+                    </thead>
+                    <tbody id="users-tbody"></tbody>
+                </table>
+            </div>
+            <p id="users-empty" class="table-empty hidden">No users found.</p>
+        </div>
+
+        <!-- History Table -->
+        <div id="tab-history" class="dash-content glass-panel hidden">
+            <div class="table-header">
+                <h3>Recent Searches</h3>
+            </div>
+            <div class="table-wrapper">
+                <table class="data-table">
+                    <thead>
+                        <tr><th>#</th><th>User</th><th>Query</th><th>Genre</th><th>Results</th><th>Date</th></tr>
+                    </thead>
+                    <tbody id="history-tbody"></tbody>
+                </table>
+            </div>
+            <p id="history-empty" class="table-empty hidden">No search history yet.</p>
+        </div>
+    </main>
+
+    <script>
+        let API = 'http://localhost:8000';
+        if (window.location.hostname.includes('onrender.com') || window.location.port === '8000') { API = ''; }
+        let currentUser = null;
+        let chartInstance = null;
+        let usersData = [];
+        let historyData = [];
+
+        // Auth guard
+        (function() {
+            const saved = localStorage.getItem('pagespark_user');
+            if (!saved) { window.location.href = 'index.html'; return; }
+            currentUser = JSON.parse(saved);
+            if (currentUser.role !== 'admin') { window.location.href = 'app.html'; return; }
+        })();
+
+        document.getElementById('logout-btn').addEventListener('click', () => {
+            localStorage.removeItem('pagespark_user');
+            window.location.href = 'index.html';
+        });
+
+        // Tabs
+        function showDashTab(tab) {
+            document.getElementById('tab-users').classList.toggle('hidden', tab !== 'users');
+            document.getElementById('tab-history').classList.toggle('hidden', tab !== 'history');
+            document.querySelectorAll('.dash-tab').forEach((t, i) => {
+                t.classList.toggle('active', (i === 0 && tab === 'users') || (i === 1 && tab === 'history'));
+            });
+        }
+
+        // Fetch stats
+        async function loadStats() {
+            try {
+                const res = await fetch(`${API}/admin/stats?admin_id=${currentUser.id}`);
+                const d = await res.json();
+                document.getElementById('stat-users').textContent = d.total_users;
+                document.getElementById('stat-active').textContent = d.active_users;
+                document.getElementById('stat-searches').textContent = d.total_searches;
+                document.getElementById('stat-books').textContent = d.total_books?.toLocaleString() || '0';
+            } catch { /* silent */ }
+        }
+
+        // Fetch users
+        async function loadUsers() {
+            try {
+                const res = await fetch(`${API}/admin/users?admin_id=${currentUser.id}`);
+                const d = await res.json();
+                const tbody = document.getElementById('users-tbody');
+                const empty = document.getElementById('users-empty');
+                tbody.innerHTML = '';
+                if (!d.users || d.users.length === 0) { empty.classList.remove('hidden'); return; }
+                empty.classList.add('hidden');
+                usersData = d.users; // Save for chart/export
+                d.users.forEach(u => {
+                    const tr = document.createElement('tr');
+                    const date = formatVNDate(u.created_at, false);
+                    tr.innerHTML = `
+                        <td>${u.id}</td>
+                        <td><strong>${esc(u.username)}</strong></td>
+                        <td>${esc(u.email)}</td>
+                        <td><span class="role-badge role-${u.role}">${u.role}</span></td>
+                        <td><span class="status-dot ${u.is_active ? 'active' : 'inactive'}"></span>${u.is_active ? 'Active' : 'Inactive'}</td>
+                        <td>${date}</td>
+                        <td>${u.role !== 'admin' ? `
+                            <button class="btn-toggle" onclick="toggleUser(${u.id})">${u.is_active ? 'Deactivate' : 'Activate'}</button>
+                            <button class="btn-toggle" style="background-color: var(--secondary-color); margin-left: 5px;" onclick="resetPassword(${u.id})">Reset Pass</button>
+                        ` : '—'}</td>
+                    `;
+                    tbody.appendChild(tr);
+                });
+                updateChart();
+            } catch { /* silent */ }
+        }
+
+        // Toggle user
+        async function toggleUser(uid) {
+            try {
+                await fetch(`${API}/admin/users/${uid}?admin_id=${currentUser.id}`, { method: 'DELETE' });
+                loadUsers();
+                loadStats();
+            } catch { /* silent */ }
+        }
+
+        // Reset password
+        async function resetPassword(uid) {
+            if(!confirm("Bạn có chắc muốn reset mật khẩu user này về '123456' không?")) return;
+            try {
+                const res = await fetch(`${API}/admin/users/${uid}/reset-password?admin_id=${currentUser.id}`, { method: 'PUT' });
+                if (res.ok) alert("Mật khẩu đã được reset về mặc định: 123456");
+            } catch { alert("Lỗi khi reset mật khẩu"); }
+        }
+
+        // Fetch history
+        async function loadHistory() {
+            try {
+                const res = await fetch(`${API}/admin/history?admin_id=${currentUser.id}`);
+                const d = await res.json();
+                const tbody = document.getElementById('history-tbody');
+                const empty = document.getElementById('history-empty');
+                tbody.innerHTML = '';
+                if (!d.history || d.history.length === 0) { empty.classList.remove('hidden'); return; }
+                empty.classList.add('hidden');
+                historyData = d.history; // Save for chart/export
+                d.history.forEach((h, i) => {
+                    const tr = document.createElement('tr');
+                    const date = formatVNDate(h.created_at, true);
+                    tr.innerHTML = `
+                        <td>${i + 1}</td>
+                        <td><strong>${esc(h.username)}</strong></td>
+                        <td class="query-cell" title="${esc(h.query)}">${esc(h.query.length > 60 ? h.query.slice(0, 60) + '…' : h.query)}</td>
+                        <td>${h.genre_filter ? esc(h.genre_filter) : '—'}</td>
+                        <td>${h.results_count}</td>
+                        <td>${date}</td>
+                    `;
+                    tbody.appendChild(tr);
+                });
+                updateChart();
+            } catch { /* silent */ }
+        }
+
+        // Render Chart
+        function updateChart() {
+            if (!usersData.length || !historyData.length) return; // wait until both load
+            
+            const ctx = document.getElementById('statsChart').getContext('2d');
+            if (chartInstance) chartInstance.destroy();
+            
+            let adminCount = usersData.filter(u => u.role === 'admin').length;
+            let userCount = usersData.filter(u => u.role === 'user').length;
+            
+            chartInstance = new Chart(ctx, {
+                type: 'bar',
+                data: {
+                    labels: ['Admins', 'Regular Users', 'Total Searches'],
+                    datasets: [{
+                        label: 'System Metrics',
+                        data: [adminCount, userCount, historyData.length],
+                        backgroundColor: ['#6366f1', '#10b981', '#f59e0b'],
+                        borderRadius: 6
+                    }]
+                },
+                options: { 
+                    responsive: true, 
+                    maintainAspectRatio: false,
+                    plugins: { legend: { display: false } },
+                    scales: { y: { beginAtZero: true, ticks: { precision: 0 } } }
+                }
+            });
+        }
+
+        // Export CSV
+        function exportCSV(type) {
+            let csv = '';
+            if (type === 'users') {
+                if (usersData.length === 0) return alert('No users to export');
+                csv += 'ID,Username,Email,Role,Active,JoinedAt\n';
+                usersData.forEach(u => {
+                    const uname = String(u.username || '').replace(/"/g, '""');
+                    const email = String(u.email || '').replace(/"/g, '""');
+                    csv += `${u.id},"${uname}","${email}",${u.role},${u.is_active},"${formatVNDate(u.created_at, true)}"\n`;
+                });
+            } else {
+                if (historyData.length === 0) return alert('No history to export');
+                csv += 'SearchID,Username,Query,GenreFilter,ResultsCount,Date\n';
+                historyData.forEach(h => {
+                    const uname = String(h.username || '').replace(/"/g, '""');
+                    const q = String(h.query || '').replace(/"/g, '""');
+                    const g = String(h.genre_filter || '').replace(/"/g, '""');
+                    csv += `${h.id},"${uname}","${q}","${g}",${h.results_count},"${formatVNDate(h.created_at, true)}"\n`;
+                });
+            }
+            
+            const blob = new Blob([csv], { type: 'text/csv;charset=utf-8;' });
+            const url = URL.createObjectURL(blob);
+            const a = document.createElement('a');
+            a.href = url;
+            a.download = `pagespark_${type}_export.csv`;
+            a.click();
+            URL.revokeObjectURL(url);
+        }
+
+        function formatVNDate(utcString, includeTime = true) {
+            if (!utcString) return '—';
+            const dateStr = utcString.endsWith('Z') ? utcString : utcString + 'Z';
+            const date = new Date(dateStr);
+            if (isNaN(date.getTime())) return '—';
+            
+            const options = {
+                timeZone: 'Asia/Ho_Chi_Minh',
+                year: 'numeric',
+                month: '2-digit',
+                day: '2-digit',
+            };
+            if (includeTime) {
+                options.hour = '2-digit';
+                options.minute = '2-digit';
+                options.second = '2-digit';
+                options.hour12 = false;
+            }
+            return date.toLocaleString('vi-VN', options);
+        }
+
+        function esc(s) { return String(s ?? '').replace(/&/g,'&amp;').replace(/</g,'&lt;').replace(/>/g,'&gt;').replace(/"/g,'&quot;'); }
+
+        loadStats();
+        loadUsers();
+        loadHistory();
+        lucide.createIcons();
+    </script>
+</body>
+</html>
