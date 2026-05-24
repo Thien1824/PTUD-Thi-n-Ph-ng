@@ -44,7 +44,7 @@ Write-Host "Cài đặt dependencies từ backend\requirements.txt..."
 
 # 6. Init database
 Write-Host "Khởi tạo database và tài khoản admin..."
-& $pythonExec -c "from backend.database import init_db; init_db()"
+& $pythonExec -c "import sys, os; sys.path.append(os.path.abspath('backend')); from database import init_db; init_db()"
 
 # 7. Start backend with uvicorn from the virtual environment
 Write-Host "Khởi chạy backend..."
