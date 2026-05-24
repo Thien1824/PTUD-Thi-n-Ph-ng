@@ -32,6 +32,7 @@ class User(Base):
 
     search_history = relationship("SearchHistory", back_populates="user")
     favorites = relationship("Favorite", back_populates="user")
+    uploaded_books = relationship("UploadedBook", back_populates="uploader")
 
 
 class SearchHistory(Base):
@@ -59,6 +60,29 @@ class Favorite(Base):
     created_at = Column(DateTime, default=datetime.utcnow)
 
     user = relationship("User", back_populates="favorites")
+
+
+class UploadedBook(Base):
+    __tablename__ = "uploaded_books"
+
+    id = Column(Integer, primary_key=True, index=True)
+    title = Column(String(255), nullable=False)
+    author = Column(String(255), nullable=False)
+    description = Column(String(3000), nullable=True)
+    genres = Column(String(500), nullable=True)
+    avg_rating = Column(Float, default=0.0)
+    url = Column(String(500), default="#")
+    image_url = Column(String(500), nullable=True)
+
+    # Trạng thái phê duyệt: "pending", "approved", "rejected"
+    status = Column(String(20), default="pending")
+    rejection_reason = Column(String(500), nullable=True)
+
+    uploaded_by_id = Column(Integer, ForeignKey("users.id"), nullable=False)
+    created_at = Column(DateTime, default=datetime.utcnow)
+    reviewed_at = Column(DateTime, nullable=True)
+
+    uploader = relationship("User", back_populates="uploaded_books")
 
 
 def init_db():
