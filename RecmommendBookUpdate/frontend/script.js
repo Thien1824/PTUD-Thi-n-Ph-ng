@@ -1,196 +1,722 @@
-<!DOCTYPE html>
-<html lang="en">
+let API = 'http://localhost:8000';
+if (window.location.hostname.includes('onrender.com') || window.location.port === '8000') { API = ''; }
+let currentUser = null;
+let allResults = [];
+let userFavorites = [];
 
-<head>
-    <meta charset="UTF-8">
-    <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>PageSpark — Welcome</title>
-    <link rel="preconnect" href="https://fonts.googleapis.com">
-    <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
-    <link href="https://fonts.googleapis.com/css2?family=Outfit:wght@300;400;500;600;700;800&display=swap"
-        rel="stylesheet">
-    <link rel="stylesheet" href="style.css">
-    <script src="https://unpkg.com/lucide@latest"></script>
-</head>
-
-<body class="auth-page">
-    <div class="background-effects" aria-hidden="true">
-        <div class="blob blob-1"></div>
-        <div class="blob blob-2"></div>
-        <div class="blob blob-3"></div>
-    </div>
-
-    <main class="auth-container">
-        <!-- Left: Branding -->
-        <div class="auth-brand">
-            <div class="brand-content">
-                <div class="logo-wrap">
-                    <div class="logo-icon"><i data-lucide="book-open-text"></i></div>
-                    <h1 class="logo">PageSpark</h1>
-                </div>
-                <p class="brand-tagline">Discover your next great read with the power of AI.</p>
-                <div class="brand-features">
-                    <div class="feature-item"><i data-lucide="sparkles"></i><span>AI-powered recommendations</span>
-                    </div>
-                    <div class="feature-item"><i data-lucide="database"></i><span>50,000+ books indexed</span></div>
-                    <div class="feature-item"><i data-lucide="search"></i><span>Natural language search</span></div>
-                    <div class="feature-item"><i data-lucide="star"></i><span>Filter by genre & rating</span></div>
-                </div>
-            </div>
-        </div>
-
-        <!-- Right: Auth Forms -->
-        <div class="auth-panel glass-panel">
-            <!-- Tab Toggle -->
-            <div class="auth-tabs">
-                <button class="auth-tab active" id="tab-login" onclick="showTab('login')">Sign In</button>
-                <button class="auth-tab" id="tab-register" onclick="showTab('register')">Sign Up</button>
-            </div>
-
-            <!-- Login Form -->
-            <form id="login-form" class="auth-form">
-                <h2>Welcome back</h2>
-                <p class="form-subtitle">Sign in to continue your reading journey</p>
-
-                <div class="field">
-                    <label for="login-username"><i data-lucide="user"></i> Username</label>
-                    <input type="text" id="login-username" placeholder="Enter username" required
-                        autocomplete="username">
-                </div>
-                <div class="field">
-                    <label for="login-password"><i data-lucide="lock"></i> Password</label>
-                    <div class="password-wrap">
-                        <input type="password" id="login-password" placeholder="Enter password" required
-                            autocomplete="current-password">
-                        <button type="button" class="toggle-pw" onclick="togglePw('login-password', this)"><i
-                                data-lucide="eye"></i></button>
-                    </div>
-                    <div style="text-align: right; margin-top: 8px;">
-                        <a href="#" onclick="alert('Please contact Admin to reset your password.')"
-                            style="color: var(--primary-color); font-size: 0.85rem; text-decoration: none;">Forgot
-                            password?</a>
-                    </div>
-                </div>
-
-                <div id="login-error" class="form-error hidden"></div>
-
-                <button type="submit" class="btn-primary btn-full">
-                    <i data-lucide="log-in"></i> Sign In
-                </button>
-            </form>
-
-            <!-- Register Form -->
-            <form id="register-form" class="auth-form hidden">
-                <h2>Create account</h2>
-                <p class="form-subtitle">Join PageSpark and start discovering</p>
-
-                <div class="field">
-                    <label for="reg-username"><i data-lucide="user"></i> Username</label>
-                    <input type="text" id="reg-username" placeholder="Choose a username" required minlength="3">
-                </div>
-                <div class="field">
-                    <label for="reg-email"><i data-lucide="mail"></i> Email</label>
-                    <input type="email" id="reg-email" placeholder="you@example.com" required>
-                </div>
-                <div class="field">
-                    <label for="reg-password"><i data-lucide="lock"></i> Password</label>
-                    <div class="password-wrap">
-                        <input type="password" id="reg-password" placeholder="Min 4 characters" required minlength="4">
-                        <button type="button" class="toggle-pw" onclick="togglePw('reg-password', this)"><i
-                                data-lucide="eye"></i></button>
-                    </div>
-                </div>
-
-                <div id="register-error" class="form-error hidden"></div>
-                <div id="register-success" class="form-success hidden"></div>
-
-                <button type="submit" class="btn-primary btn-full">
-                    <i data-lucide="user-plus"></i> Create Account
-                </button>
-            </form>
-        </div>
-    </main>
-
-    <script>
-        let API = 'http://localhost:8000';
-        if (window.location.hostname.includes('onrender.com') || window.location.port === '8000') { API = ''; }
-
-        // Check if already logged in
+// ── Auth Guard ────────────────────────────────────────
+(function() {
+    try {
         const saved = localStorage.getItem('pagespark_user');
-        if (saved) {
-            const user = JSON.parse(saved);
-            window.location.href = user.role === 'admin' ? 'admin.html' : 'app.html';
+        if (!saved) {
+            window.location.href = 'index.html';
+            return;
         }
+        currentUser = JSON.parse(saved);
+    } catch (e) {
+        console.error("Auth Guard Error:", e);
+        localStorage.removeItem('pagespark_user');
+        window.location.href = 'index.html';
+    }
+})();
 
-        function showTab(tab) {
-            document.getElementById('login-form').classList.toggle('hidden', tab !== 'login');
-            document.getElementById('register-form').classList.toggle('hidden', tab !== 'register');
-            document.getElementById('tab-login').classList.toggle('active', tab === 'login');
-            document.getElementById('tab-register').classList.toggle('active', tab === 'register');
-        }
+document.addEventListener('DOMContentLoaded', () => {
+    // Hiển thị lời chào
+    const greet = document.getElementById('nav-greeting');
+    if (greet && currentUser) greet.textContent = `Hi, ${currentUser.username}`;
 
-        function togglePw(id, btn) {
-            const inp = document.getElementById(id);
-            const show = inp.type === 'password';
-            inp.type = show ? 'text' : 'password';
-            btn.innerHTML = show ? '<i data-lucide="eye-off"></i>' : '<i data-lucide="eye"></i>';
-            lucide.createIcons();
-        }
+    // Load user favorites and stats immediately on load
+    fetchFavoritesAndStats();
 
-        // Login
-        document.getElementById('login-form').addEventListener('submit', async (e) => {
+    const searchBtn = document.getElementById('search-btn'); // Nút này giờ là type="button"
+    const textarea = document.getElementById('description');
+    const charCounter = document.getElementById('char-counter');
+    const topNInput = document.getElementById('top_n');
+    const topNDisplay = document.getElementById('top-n-display');
+    const minRatingInput = document.getElementById('min-rating');
+    const ratingDisplay = document.getElementById('rating-display');
+    const genreSelect = document.getElementById('genre-filter');
+    const sortSelect = document.getElementById('sort-select');
+    const loadingEl = document.getElementById('loading');
+    const errorEl = document.getElementById('error-message');
+    const errorText = document.getElementById('error-text');
+    const resultsGrid = document.getElementById('results-grid');
+    const resultsHeader = document.getElementById('results-header');
+    const resultsCount = document.getElementById('results-count');
+    const resultsQuery = document.getElementById('results-query');
+    const emptyState = document.getElementById('empty-state');
+    const modal = document.getElementById('book-modal');
+    const modalContent = document.getElementById('modal-content');
+
+    // Load danh mục
+    window.loadCategories = function() {
+        if (!genreSelect) return;
+        fetch(`${API}/categories`).then(r => r.json()).then(d => {
+            const currentVal = genreSelect.value;
+            genreSelect.innerHTML = '<option value="">All Genres</option>';
+            if (d.categories) d.categories.forEach(c => {
+                const o = document.createElement('option'); o.value = c; o.textContent = c;
+                genreSelect.appendChild(o);
+            });
+            if (currentVal) genreSelect.value = currentVal;
+        }).catch(err => console.error(err));
+    };
+    window.loadCategories();
+
+    // Logout
+    const logoutBtn = document.getElementById('logout-btn');
+    if (logoutBtn) {
+        logoutBtn.addEventListener('click', (e) => {
             e.preventDefault();
-            const errEl = document.getElementById('login-error');
-            errEl.classList.add('hidden');
-            try {
-                const res = await fetch(`${API}/login`, {
+            localStorage.removeItem('pagespark_user');
+            window.location.href = 'index.html';
+        });
+    }
+
+    // Slider & Char counter
+    textarea.addEventListener('input', () => { charCounter.textContent = textarea.value.length; });
+    topNInput.addEventListener('input', e => { topNDisplay.textContent = e.target.value; });
+    minRatingInput.addEventListener('input', e => {
+        const v = parseFloat(e.target.value);
+        ratingDisplay.textContent = v === 0 ? 'Any' : v + '★';
+    });
+
+    // Listen for sort changes
+    if (sortSelect) {
+        sortSelect.addEventListener('change', () => {
+            if (allResults.length > 0) {
+                renderResults(sortBooks([...allResults]));
+            }
+        });
+    }
+
+    // Nút Clear
+    const clearBtn = document.getElementById('clear-btn');
+    if (clearBtn) {
+        clearBtn.addEventListener('click', () => {
+            textarea.value = '';
+            charCounter.textContent = '0';
+            genreSelect.value = '';
+            minRatingInput.value = '0';
+            ratingDisplay.textContent = 'Any';
+            topNInput.value = '5';
+            topNDisplay.textContent = '5';
+            resultsGrid.innerHTML = '';
+            resultsHeader.classList.add('hidden');
+            emptyState.classList.remove('hidden');
+            textarea.focus();
+        });
+    }
+
+    // Example chips
+    document.querySelectorAll('.example-chip').forEach(chip => {
+        chip.addEventListener('click', () => {
+            textarea.value = chip.dataset.text;
+            charCounter.textContent = textarea.value.length;
+            startSearch();
+        });
+    });
+
+    // Close Modal
+    const modalClose = document.getElementById('modal-close');
+    if (modalClose) modalClose.addEventListener('click', closeModal);
+    window.addEventListener('click', (e) => { if (e.target === modal) closeModal(); });
+
+    // Close Error
+    const errorClose = document.getElementById('error-close');
+    if (errorClose) {
+        errorClose.addEventListener('click', () => errorEl.classList.add('hidden'));
+    }
+
+
+    // Xử lý tìm kiếm qua Form Submit (Cả khi nhấn nút và nhấn Enter)
+    const searchForm = document.getElementById('search-form');
+    if (searchForm) {
+        searchForm.addEventListener('submit', (e) => {
+            e.preventDefault();
+            e.stopPropagation();
+            startSearch();
+        });
+    }
+
+    let isSearching = false;
+    async function startSearch() {
+        if (isSearching) return;
+        const desc = textarea.value.trim();
+
+        isSearching = true;
+
+        // Reset UI
+        loadingEl.classList.remove('hidden');
+        errorEl.classList.add('hidden');
+        emptyState.classList.add('hidden');
+        resultsHeader.classList.add('hidden');
+        resultsGrid.innerHTML = '';
+        searchBtn.disabled = true;
+
+        try {
+            const body = {
+                description: desc,
+                top_n: parseInt(topNInput.value) || 5,
+                genre_filter: genreSelect.value || null,
+                min_rating: parseFloat(minRatingInput.value) || null,
+                user_id: currentUser ? currentUser.id : null
+            };
+
+            const res = await fetch(`${API}/recommend`, {
+                method: 'POST',
+                headers: { 'Content-Type': 'application/json' },
+                body: JSON.stringify(body)
+            });
+
+            if (!res.ok) {
+                if (res.status === 401 || res.status === 403) {
+                    // Nếu lỗi auth, mới chuyển về login
+                    localStorage.removeItem('pagespark_user');
+                    window.location.href = 'index.html';
+                    return;
+                }
+                throw new Error('Server returned an error');
+            }
+            const data = await res.json();
+            
+            allResults = data.recommendations || [];
+            
+            // Hiển thị kết quả
+            resultsCount.textContent = `${allResults.length} book${allResults.length !== 1 ? 's' : ''} found`;
+            resultsQuery.textContent = desc ? `for "${desc.slice(0, 40)}..."` : `by filters`;
+            resultsHeader.classList.remove('hidden');
+
+            renderResults(sortBooks([...allResults]));
+
+            if (allResults.length === 0) {
+                emptyState.classList.remove('hidden');
+            }
+
+        } catch (err) {
+            errorText.textContent = err.message;
+            errorEl.classList.remove('hidden');
+        } finally {
+            loadingEl.classList.add('hidden');
+            searchBtn.disabled = false;
+            isSearching = false;
+        }
+    }
+
+    function renderResults(books) {
+        resultsGrid.innerHTML = '';
+        books.forEach((book, i) => {
+            const genres = Array.isArray(book.genres) ? book.genres : [];
+            const card = document.createElement('article');
+            card.className = 'book-card';
+            card.style.animationDelay = `${i * 0.05}s`;
+            
+            // Link Goodreads - xử lý nếu link là # để không bị nhảy trang
+            const bookUrl = (book.url && book.url !== '#') ? book.url : 'javascript:void(0)';
+
+            const isFav = userFavorites.some(f => f.book_title === book.title);
+
+            // Compute hash index for consistent gorgeous gradient covers
+            const hash = Array.from(book.title || '').reduce((acc, char) => acc + char.charCodeAt(0), 0);
+            const gradIndex = hash % 6;
+
+            card.innerHTML = `
+                <div class="book-cover-container">
+                    <div class="book-cover-placeholder cover-grad-${gradIndex}">
+                        <div class="cover-spine"></div>
+                        <div class="cover-title-text">${esc(book.title)}</div>
+                        <div class="cover-author-text">${esc(book.author)}</div>
+                    </div>
+                    <img class="book-cover-img hidden" alt="${esc(book.title)} cover">
+                </div>
+                <div class="book-info-container">
+                    <div class="book-header">
+                        <div class="book-header-text">
+                            <h3 class="book-title" title="${esc(book.title)}">${esc(book.title)}</h3>
+                            <p class="book-author">by ${esc(book.author)}</p>
+                        </div>
+                        <div class="book-rating"><i data-lucide="star"></i><span>${book.rating || 'N/A'}</span></div>
+                    </div>
+                    <p class="book-description">${esc(book.description)}</p>
+                    <div class="book-genres">
+                        ${genres.slice(0,2).map(g => `<span class="genre-tag">${esc(g.trim())}</span>`).join('')}
+                    </div>
+                    <div class="book-footer">
+                        <span class="score-badge">Match ${Math.round(book.score*100)}%</span>
+                        <a href="${bookUrl}" target="${bookUrl.startsWith('http') ? '_blank' : '_self'}" class="view-link" onclick="event.stopPropagation()">
+                            Goodreads <i data-lucide="external-link"></i>
+                        </a>
+                    </div>
+                </div>`;
+            
+            // Add Heart/Favorite Button
+            const heartBtn = document.createElement('button');
+            heartBtn.className = `btn-fav ${isFav ? 'active' : ''}`;
+            heartBtn.innerHTML = `<i data-lucide="heart" style="width:16px; height:16px; ${isFav ? 'fill:#ef4444' : ''}"></i>`;
+            heartBtn.addEventListener('click', (e) => {
+                e.stopPropagation();
+                toggleFavorite(book, heartBtn);
+            });
+            card.appendChild(heartBtn);
+            
+            card.addEventListener('click', () => openModal(book));
+            resultsGrid.appendChild(card);
+
+            // Fetch cover asynchronously (passing database image_url if available)
+            loadBookCover(book.title, book.author, card.querySelector('.book-cover-container'), book.image_url);
+        });
+        if (window.lucide) lucide.createIcons();
+    }
+
+    async function loadBookCover(title, author, container, dbImageUrl) {
+        if (!container) return;
+        const img = container.querySelector('.book-cover-img') || container.querySelector('.modal-cover-img');
+        const placeholder = container.querySelector('.book-cover-placeholder') || container.querySelector('.modal-cover-placeholder');
+        
+        // 1. If database has a direct cover image URL, use it immediately!
+        if (dbImageUrl && dbImageUrl.trim() && dbImageUrl !== 'nan' && dbImageUrl !== 'None') {
+            img.src = dbImageUrl;
+            img.onload = () => {
+                if (img.naturalWidth <= 1 && img.naturalHeight <= 1) {
+                    // Transparent 1x1 spacer image returned by Open Library title covers
+                    img.classList.add('hidden');
+                    if (placeholder) placeholder.classList.remove('hidden');
+                    fetchFallbackCovers(title, author, container);
+                } else {
+                    img.classList.remove('hidden');
+                    if (placeholder) placeholder.classList.add('hidden');
+                }
+            };
+            img.onerror = () => {
+                // If it fails (e.g. broken or blocked link), try fallback fetch APIs
+                fetchFallbackCovers(title, author, container);
+            };
+            return;
+        }
+
+        // Otherwise, query cover APIs directly
+        fetchFallbackCovers(title, author, container);
+    }
+
+    async function fetchFallbackCovers(title, author, container) {
+        const cleanTitle = String(title || '').replace(/[\(\[].*?[\)\]]/g, '').trim();
+        const cleanAuthor = String(author || '').trim();
+        const cacheKey = `cover_${cleanTitle}_${cleanAuthor}`;
+        const cachedUrl = sessionStorage.getItem(cacheKey);
+        
+        const img = container.querySelector('.book-cover-img') || container.querySelector('.modal-cover-img');
+        const placeholder = container.querySelector('.book-cover-placeholder') || container.querySelector('.modal-cover-placeholder');
+
+        if (cachedUrl) {
+            if (cachedUrl === 'none') {
+                img.classList.add('hidden');
+                if (placeholder) placeholder.classList.remove('hidden');
+                return;
+            }
+            img.src = cachedUrl;
+            img.onload = () => {
+                if (img.naturalWidth <= 1 && img.naturalHeight <= 1) {
+                    img.classList.add('hidden');
+                    if (placeholder) placeholder.classList.remove('hidden');
+                } else {
+                    img.classList.remove('hidden');
+                    if (placeholder) placeholder.classList.add('hidden');
+                }
+            };
+            return;
+        }
+
+        // 1. Try Open Library Search API first (Free, CORS enabled, Zero rate-limiting)
+        try {
+            const olRes = await fetch(`https://openlibrary.org/search.json?title=${encodeURIComponent(cleanTitle)}&author=${encodeURIComponent(cleanAuthor)}&limit=1`);
+            if (olRes.ok) {
+                const olData = await olRes.json();
+                if (olData.docs && olData.docs[0]) {
+                    const coverId = olData.docs[0].cover_i;
+                    if (coverId) {
+                        const coverUrl = `https://covers.openlibrary.org/b/id/${coverId}-M.jpg`;
+                        sessionStorage.setItem(cacheKey, coverUrl);
+                        img.src = coverUrl;
+                        img.onload = () => {
+                            if (img.naturalWidth <= 1 && img.naturalHeight <= 1) {
+                                img.classList.add('hidden');
+                                if (placeholder) placeholder.classList.remove('hidden');
+                            } else {
+                                img.classList.remove('hidden');
+                                if (placeholder) placeholder.classList.add('hidden');
+                            }
+                        };
+                        return;
+                    }
+                }
+            }
+        } catch (e) {
+            console.warn("Open Library Cover search fallback triggered:", e);
+        }
+
+        // 2. Try Google Books API as solid fallback
+        try {
+            const query = `${cleanTitle} ${cleanAuthor}`;
+            const res = await fetch(`https://www.googleapis.com/books/v1/volumes?q=${encodeURIComponent(query)}&maxResults=1`);
+            if (res.ok) {
+                const data = await res.json();
+                if (data.items && data.items[0]) {
+                    const volumeInfo = data.items[0].volumeInfo;
+                    const thumbnail = volumeInfo.imageLinks?.thumbnail || volumeInfo.imageLinks?.smallThumbnail;
+                    if (thumbnail) {
+                        const secureUrl = thumbnail.replace('http://', 'https://');
+                        sessionStorage.setItem(cacheKey, secureUrl);
+                        img.src = secureUrl;
+                        img.onload = () => {
+                            if (img.naturalWidth <= 1 && img.naturalHeight <= 1) {
+                                img.classList.add('hidden');
+                                if (placeholder) placeholder.classList.remove('hidden');
+                            } else {
+                                img.classList.remove('hidden');
+                                if (placeholder) placeholder.classList.add('hidden');
+                            }
+                        };
+                        return;
+                    }
+                }
+            }
+        } catch (e) {
+            console.warn("Google Books Cover search fallback error:", e);
+        }
+
+        sessionStorage.setItem(cacheKey, 'none');
+        img.classList.add('hidden');
+        if (placeholder) placeholder.classList.remove('hidden');
+    }
+
+    function openModal(book) {
+        const genres = Array.isArray(book.genres) ? book.genres : [];
+        const bookUrl = (book.url && book.url !== '#') ? book.url : 'javascript:void(0)';
+        
+        // Compute hash index for consistency in modal too
+        const hash = Array.from(book.title || '').reduce((acc, char) => acc + char.charCodeAt(0), 0);
+        const gradIndex = hash % 6;
+
+        modalContent.innerHTML = `
+            <div class="modal-genre-strip"></div>
+            <div class="modal-body-layout">
+                <div class="modal-cover-container">
+                    <div class="modal-cover-placeholder cover-grad-${gradIndex}">
+                        <div class="cover-spine" style="width:12px;"></div>
+                        <div class="cover-title-text" style="font-size:0.85rem; padding: 0 0.8rem 0 1rem; -webkit-line-clamp: 5;">${esc(book.title)}</div>
+                        <div class="cover-author-text" style="font-size:0.65rem; padding-left: 1rem;">by ${esc(book.author)}</div>
+                    </div>
+                    <img class="modal-cover-img hidden" alt="${esc(book.title)} cover">
+                </div>
+                <div class="modal-info-container">
+                    <h2 class="modal-title">${esc(book.title)}</h2>
+                    <p class="modal-author">by ${esc(book.author)}</p>
+                    <div class="modal-rating"><i data-lucide="star"></i><span>${book.rating || 'N/A'} / 5.0</span></div>
+                    <p class="modal-desc">${esc(book.description)}</p>
+                    <div class="modal-genres">${genres.map(g => `<span class="genre-tag">${esc(g.trim())}</span>`).join('')}</div>
+                    <a href="${bookUrl}" target="${bookUrl.startsWith('http') ? '_blank' : '_self'}" class="modal-link">
+                        <i data-lucide="book-open"></i> View on Goodreads
+                    </a>
+                </div>
+            </div>`;
+        
+        modal.classList.remove('hidden');
+        document.body.style.overflow = 'hidden';
+        
+        // Fetch large cover in modal (passing database image_url if available)
+        loadBookCover(book.title, book.author, modalContent.querySelector('.modal-cover-container'), book.image_url);
+        
+        if (window.lucide) lucide.createIcons();
+    }
+
+    function closeModal() {
+        modal.classList.add('hidden');
+        document.body.style.overflow = '';
+    }
+
+    function sortBooks(books) {
+        const by = sortSelect.value;
+        if (by === 'rating') {
+            return books.sort((a, b) => (Number(b.rating) || 0) - (Number(a.rating) || 0));
+        }
+        if (by === 'title') {
+            return books.sort((a, b) => String(a.title || '').localeCompare(String(b.title || '')));
+        }
+        return books.sort((a, b) => (Number(b.score) || 0) - (Number(a.score) || 0));
+    }
+
+    // Favorites & Library helper functions
+    async function toggleFavorite(book, btn) {
+        if (!currentUser) return alert('Vui lòng đăng nhập để lưu sách yêu thích!');
+        const isFav = btn.classList.contains('active');
+        
+        try {
+            if (isFav) {
+                const favItem = userFavorites.find(f => f.book_title === book.title);
+                if (favItem) {
+                    const res = await fetch(`${API}/favorites/${favItem.id}`, {
+                        method: 'DELETE'
+                    });
+                    if (!res.ok) throw new Error('Không thể xóa sách khỏi danh sách yêu thích');
+                    
+                    userFavorites = userFavorites.filter(f => f.id !== favItem.id);
+                    btn.classList.remove('active');
+                }
+            } else {
+                const res = await fetch(`${API}/favorites`, {
                     method: 'POST',
                     headers: { 'Content-Type': 'application/json' },
                     body: JSON.stringify({
-                        username: document.getElementById('login-username').value,
-                        password: document.getElementById('login-password').value
+                        user_id: currentUser.id,
+                        book_title: book.title,
+                        book_author: book.author || null,
+                        book_url: book.url || null,
+                        book_rating: parseFloat(book.rating) || null
                     })
                 });
+                if (!res.ok) throw new Error('Không thể thêm sách vào danh sách yêu thích');
                 const data = await res.json();
-                if (!res.ok) throw new Error(data.detail || 'Login failed');
-                localStorage.setItem('pagespark_user', JSON.stringify(data.user));
-                window.location.href = data.user.role === 'admin' ? 'admin.html' : 'app.html';
-            } catch (err) {
-                errEl.textContent = err.message;
-                errEl.classList.remove('hidden');
+                
+                userFavorites.push({
+                    id: data.favorite_id,
+                    book_title: book.title,
+                    book_author: book.author,
+                    book_url: book.url,
+                    book_rating: book.rating
+                });
+                btn.classList.add('active');
             }
-        });
+            updateLibraryStats();
+        } catch (err) {
+            alert(err.message);
+        }
+    }
 
-        // Register
-        document.getElementById('register-form').addEventListener('submit', async (e) => {
-            e.preventDefault();
-            const errEl = document.getElementById('register-error');
-            const okEl = document.getElementById('register-success');
-            errEl.classList.add('hidden');
-            okEl.classList.add('hidden');
+    window.openLibraryModal = async function() {
+        if (!currentUser) return;
+        const modal = document.getElementById('library-modal');
+        modal.classList.remove('hidden');
+        document.body.style.overflow = 'hidden';
+        await fetchFavoritesAndStats();
+    };
+
+    window.closeLibraryModal = function() {
+        const modal = document.getElementById('library-modal');
+        modal.classList.add('hidden');
+        document.body.style.overflow = '';
+    };
+
+    async function fetchFavoritesAndStats() {
+        if (!currentUser) return;
+        try {
+            // Fetch stats
+            const statsRes = await fetch(`${API}/users/${currentUser.id}/stats`);
+            if (statsRes.ok) {
+                const stats = await statsRes.json();
+                document.getElementById('user-stat-searches').textContent = stats.search_count;
+                document.getElementById('user-stat-favorites').textContent = stats.favorite_count;
+            }
+
+            // Fetch favorites
+            const favRes = await fetch(`${API}/favorites/${currentUser.id}`);
+            if (favRes.ok) {
+                const data = await favRes.json();
+                userFavorites = data.favorites || [];
+                renderFavoritesList();
+            }
+
+            // Fetch search history
+            const histRes = await fetch(`${API}/users/${currentUser.id}/history`);
+            if (histRes.ok) {
+                const data = await histRes.json();
+                renderHistoryList(data.history || []);
+            }
+
+            // Fetch user uploads (contributions)
+            const uploadsRes = await fetch(`${API}/users/${currentUser.id}/uploads`);
+            if (uploadsRes.ok) {
+                const data = await uploadsRes.json();
+                const uploads = data.uploads || [];
+                const uploadStatEl = document.getElementById('user-stat-uploads');
+                if (uploadStatEl) uploadStatEl.textContent = uploads.length;
+                renderContributionsList(uploads);
+            }
+        } catch (err) {
+            console.error("Error fetching library data:", err);
+        }
+    }
+
+    function renderFavoritesList() {
+        const container = document.getElementById('favorites-list-container');
+        container.innerHTML = '';
+        
+        if (userFavorites.length === 0) {
+            container.innerHTML = `<div style="text-align: center; color: var(--text-muted); padding: 2rem 0;">No books saved yet. Click the heart icon on book cards to save them!</div>`;
+            return;
+        }
+
+        userFavorites.forEach(f => {
+            const item = document.createElement('div');
+            item.className = 'fav-item';
+            
+            const bookUrl = (f.book_url && f.book_url !== '#') ? f.book_url : 'javascript:void(0)';
+            
+            item.innerHTML = `
+                <div>
+                    <div class="fav-title">${esc(f.book_title)}</div>
+                    <div class="fav-meta">by ${esc(f.book_author || 'Unknown')} • ★ ${f.book_rating || 'N/A'}</div>
+                </div>
+                <div style="display: flex; gap: 0.75rem; align-items: center;">
+                    <a href="${bookUrl}" target="${bookUrl.startsWith('http') ? '_blank' : '_self'}" class="view-link" style="font-size: 0.75rem; padding: 0.25rem 0.5rem; display: flex; align-items: center; gap: 0.25rem;">
+                        View <i data-lucide="external-link" style="width:12px; height:12px;"></i>
+                    </a>
+                    <button class="btn-ghost" onclick="removeFavoriteFromList(${f.id})" style="color: #ef4444; padding: 0.25rem; border-radius: 4px;" title="Xóa khỏi danh sách"><i data-lucide="trash-2" style="width:16px; height:16px;"></i></button>
+                </div>
+            `;
+            container.appendChild(item);
+        });
+        if (window.lucide) lucide.createIcons();
+    }
+
+    window.removeFavoriteFromList = async function(favId) {
+        if (confirm("Bạn có chắc chắn muốn xóa cuốn sách này khỏi danh sách yêu thích?")) {
             try {
-                const res = await fetch(`${API}/register`, {
-                    method: 'POST',
-                    headers: { 'Content-Type': 'application/json' },
-                    body: JSON.stringify({
-                        username: document.getElementById('reg-username').value,
-                        email: document.getElementById('reg-email').value,
-                        password: document.getElementById('reg-password').value
-                    })
+                const res = await fetch(`${API}/favorites/${favId}`, {
+                    method: 'DELETE'
                 });
-                const data = await res.json();
-                if (!res.ok) throw new Error(data.detail || 'Registration failed');
-                okEl.textContent = 'Account created! Redirecting to login...';
-                okEl.classList.remove('hidden');
-                setTimeout(() => showTab('login'), 1500);
+                if (!res.ok) throw new Error('Không thể xóa sách');
+                
+                userFavorites = userFavorites.filter(f => f.id !== favId);
+                renderFavoritesList();
+                
+                // Update stats counter
+                document.getElementById('user-stat-favorites').textContent = userFavorites.length;
+                
+                // Re-render search results if they are visible to update heart state
+                if (allResults.length > 0) {
+                    renderResults(sortBooks([...allResults]));
+                }
             } catch (err) {
-                errEl.textContent = err.message;
-                errEl.classList.remove('hidden');
+                alert(err.message);
             }
+        }
+    };
+
+    function updateLibraryStats() {
+        const statsFavCount = document.getElementById('user-stat-favorites');
+        if (statsFavCount) {
+            statsFavCount.textContent = userFavorites.length;
+        }
+        renderFavoritesList();
+    }
+
+    function renderContributionsList(uploads) {
+        const container = document.getElementById('contributions-list-container');
+        if (!container) return;
+        container.innerHTML = '';
+
+        if (!uploads || uploads.length === 0) {
+            container.innerHTML = `<div style="text-align: center; color: var(--text-muted); padding: 2rem 0;">Chưa có sách nào được đóng góp. Nhấn nút trên để bắt đầu!</div>`;
+            return;
+        }
+
+        const statusConfig = {
+            pending:  { label: 'Chờ duyệt', color: '#f59e0b', bg: 'rgba(245,158,11,0.15)' },
+            approved: { label: 'Đã duyệt',  color: '#10b981', bg: 'rgba(16,185,129,0.15)' },
+            rejected: { label: 'Từ chối',   color: '#ef4444', bg: 'rgba(239,68,68,0.15)' }
+        };
+
+        uploads.forEach(b => {
+            const cfg = statusConfig[b.status] || statusConfig.pending;
+            const item = document.createElement('div');
+            item.className = 'fav-item';
+            item.innerHTML = `
+                <div style="flex:1; min-width:0;">
+                    <div class="fav-title">${esc(b.title)}</div>
+                    <div class="fav-meta">by ${esc(b.author || 'Unknown')}${ b.genres ? ' • ' + esc(b.genres.split(',').slice(0,2).join(', ')) : ''}</div>
+                    ${ b.status === 'rejected' && b.rejection_reason ? `<div style="font-size:0.72rem; color:#ef4444; margin-top:0.2rem;">Lý do: ${esc(b.rejection_reason)}</div>` : '' }
+                </div>
+                <span style="font-size:0.72rem; font-weight:600; padding:0.2rem 0.55rem; border-radius:20px; white-space:nowrap; color:${cfg.color}; background:${cfg.bg};">${cfg.label}</span>
+            `;
+            container.appendChild(item);
         });
+        if (window.lucide) lucide.createIcons();
+    }
 
-        lucide.createIcons();
-    </script>
-</body>
+    function renderHistoryList(history) {
+        const container = document.getElementById('history-list-container');
+        container.innerHTML = '';
 
-</html>
+        if (history.length === 0) {
+            container.innerHTML = `<div style="text-align: center; color: var(--text-muted); padding: 2rem 0;">No search history yet. Start searching!</div>`;
+            return;
+        }
+
+        history.forEach(item => {
+            const el = document.createElement('div');
+            el.className = 'history-item';
+            el.addEventListener('click', () => {
+                reRunSearch(item.query, item.genre_filter);
+            });
+
+            // Format date nicely
+            let dateStr = 'Recently';
+            if (item.created_at) {
+                try {
+                    const date = new Date(item.created_at);
+                    dateStr = date.toLocaleDateString() + ' ' + date.toLocaleTimeString([], {hour: '2-digit', minute:'2-digit'});
+                } catch(e) {}
+            }
+
+            const queryText = item.query ? esc(item.query) : '<span style="font-style:italic; color:var(--text-dim)">Filtered search</span>';
+            const genreBadge = item.genre_filter ? `<span class="genre-tag" style="margin-left: 0.5rem; font-size: 0.65rem; padding: 0.1rem 0.4rem;">${esc(item.genre_filter)}</span>` : '';
+
+            el.innerHTML = `
+                <div style="flex: 1; min-width: 0; padding-right: 0.5rem;">
+                    <div class="history-query" title="${item.query ? esc(item.query) : ''}">${queryText} ${genreBadge}</div>
+                    <div class="history-meta">${dateStr} • ${item.results_count || 0} books</div>
+                </div>
+                <div style="color: var(--primary); font-size: 0.75rem; display: flex; align-items: center; gap: 0.15rem; font-weight: 600;">
+                    Search <i data-lucide="arrow-right" style="width:12px; height:12px;"></i>
+                </div>
+            `;
+            container.appendChild(el);
+        });
+        if (window.lucide) lucide.createIcons();
+    }
+
+    window.clearSearchHistory = async function() {
+        if (!currentUser) return;
+        if (confirm("Bạn có chắc chắn muốn xóa toàn bộ lịch sử tìm kiếm?")) {
+            try {
+                const res = await fetch(`${API}/users/${currentUser.id}/history`, {
+                    method: 'DELETE'
+                });
+                if (!res.ok) throw new Error('Không thể xóa lịch sử');
+                
+                // Re-fetch favorites and stats (which will reload history)
+                await fetchFavoritesAndStats();
+            } catch (err) {
+                alert(err.message);
+            }
+        }
+    };
+
+    function reRunSearch(query, genre) {
+        // Fill form
+        textarea.value = query || '';
+        charCounter.textContent = textarea.value.length;
+        genreSelect.value = genre || '';
+        
+        // Close modal
+        closeLibraryModal();
+        
+        // Run search
+        startSearch();
+    }
+
+    function esc(s) {
+        if (!s) return '';
+        return String(s).replace(/&/g,'&amp;').replace(/</g,'&lt;').replace(/>/g,'&gt;').replace(/"/g,'&quot;');
+    }
+});

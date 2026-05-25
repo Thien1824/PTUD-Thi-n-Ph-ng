@@ -78,6 +78,9 @@
             <button class="dash-tab" onclick="showDashTab('history')">
                 <i data-lucide="clock"></i> Search History
             </button>
+            <button class="dash-tab" onclick="showDashTab('books')" id="books-tab-btn">
+                <i data-lucide="book-plus"></i> Duyệt Sách <span id="pending-badge" style="display:none; background:#ef4444; color:white; border-radius:20px; padding:0.1rem 0.45rem; font-size:0.7rem; margin-left:0.3rem; font-weight:700;">0</span>
+            </button>
         </div>
 
         <!-- Users Table -->
@@ -111,6 +114,56 @@
             </div>
             <p id="history-empty" class="table-empty hidden">No search history yet.</p>
         </div>
+
+        <!-- Books Approval Tab -->
+        <div id="tab-books" class="dash-content glass-panel hidden">
+            <!-- Quick Add Form for Admin -->
+            <div style="margin-bottom: 1.5rem; padding: 1.25rem; background: rgba(16,185,129,0.07); border-radius: 12px; border: 1px solid rgba(16,185,129,0.2);">
+                <h3 style="margin-bottom: 1rem; color: #10b981; display:flex; align-items:center; gap:0.5rem; font-size:1rem;">
+                    <i data-lucide="plus-circle"></i> Thêm Sách nhanh (Admin — tự động duyệt)
+                </h3>
+                <div style="display: grid; grid-template-columns: 1fr 1fr; gap: 0.75rem; margin-bottom: 0.75rem;">
+                    <input type="text" id="qa-title" placeholder="Tên sách *" style="padding:0.6rem 0.8rem; border-radius:8px; border:1px solid var(--border-color); background:rgba(0,0,0,0.25); color:white; font-size:0.9rem;">
+                    <input type="text" id="qa-author" placeholder="Tác giả *" style="padding:0.6rem 0.8rem; border-radius:8px; border:1px solid var(--border-color); background:rgba(0,0,0,0.25); color:white; font-size:0.9rem;">
+                </div>
+                <div style="margin-bottom: 0.75rem;">
+                    <textarea id="qa-description" placeholder="Mô tả sách (dùng để AI gợi ý)" rows="3" style="width:100%; box-sizing:border-box; padding:0.6rem 0.8rem; border-radius:8px; border:1px solid var(--border-color); background:rgba(0,0,0,0.25); color:white; font-size:0.9rem; font-family:inherit; resize:vertical;"></textarea>
+                </div>
+                <div style="display: grid; grid-template-columns: 2fr 1fr 1fr; gap: 0.75rem; margin-bottom: 0.75rem;">
+                    <input type="text" id="qa-genres" placeholder="Thể loại (phân cách dấu phẩy)" style="padding:0.6rem 0.8rem; border-radius:8px; border:1px solid var(--border-color); background:rgba(0,0,0,0.25); color:white; font-size:0.9rem;">
+                    <input type="number" id="qa-rating" placeholder="Rating (0-5)" min="0" max="5" step="0.1" style="padding:0.6rem 0.8rem; border-radius:8px; border:1px solid var(--border-color); background:rgba(0,0,0,0.25); color:white; font-size:0.9rem;">
+                    <input type="url" id="qa-url" placeholder="Link sách *" style="padding:0.6rem 0.8rem; border-radius:8px; border:1px solid var(--border-color); background:rgba(0,0,0,0.25); color:white; font-size:0.9rem;">
+                </div>
+                <div style="margin-bottom: 0.75rem;">
+                    <input type="url" id="qa-image-url" placeholder="Link ảnh bìa (tùy chọn)" style="width:100%; box-sizing:border-box; padding:0.6rem 0.8rem; border-radius:8px; border:1px solid var(--border-color); background:rgba(0,0,0,0.25); color:white; font-size:0.9rem;">
+                </div>
+                <div id="qa-error" style="display:none; color:#ef4444; font-size:0.82rem; margin-bottom:0.5rem;"></div>
+                <div id="qa-success" style="display:none; color:#10b981; font-size:0.82rem; margin-bottom:0.5rem;"></div>
+                <button onclick="adminAddBook()" class="btn-primary" style="background:linear-gradient(135deg,#10b981,#059669); border:none;">
+                    <i data-lucide="plus"></i> Thêm vào hệ thống ngay
+                </button>
+            </div>
+
+            <!-- Pending Books Table -->
+            <div class="table-header" style="display:flex; justify-content:space-between; align-items:center;">
+                <h3>Sách Đóng góp của Người dùng</h3>
+                <div style="display:flex; gap:0.5rem;">
+                    <button class="btn-ghost btn-sm" onclick="filterBooks('all')" id="filter-all" style="font-size:0.8rem; padding:0.3rem 0.7rem; border-radius:6px; background:var(--primary); color:white;">Tất cả</button>
+                    <button class="btn-ghost btn-sm" onclick="filterBooks('pending')" id="filter-pending" style="font-size:0.8rem; padding:0.3rem 0.7rem; border-radius:6px;">Chờ duyệt</button>
+                    <button class="btn-ghost btn-sm" onclick="filterBooks('approved')" id="filter-approved" style="font-size:0.8rem; padding:0.3rem 0.7rem; border-radius:6px;">Duyệt</button>
+                    <button class="btn-ghost btn-sm" onclick="filterBooks('rejected')" id="filter-rejected" style="font-size:0.8rem; padding:0.3rem 0.7rem; border-radius:6px;">Từ chối</button>
+                </div>
+            </div>
+            <div class="table-wrapper">
+                <table class="data-table">
+                    <thead>
+                        <tr><th>#</th><th>Tên sách</th><th>Tác giả</th><th>Người gửi</th><th>Ngày gửi</th><th>Trạng thái</th><th>Thao tác</th></tr>
+                    </thead>
+                    <tbody id="books-tbody"></tbody>
+                </table>
+            </div>
+            <p id="books-empty" class="table-empty hidden">Không có sách nào.</p>
+        </div>
     </main>
 
     <script>
@@ -138,9 +191,15 @@
         function showDashTab(tab) {
             document.getElementById('tab-users').classList.toggle('hidden', tab !== 'users');
             document.getElementById('tab-history').classList.toggle('hidden', tab !== 'history');
+            document.getElementById('tab-books').classList.toggle('hidden', tab !== 'books');
             document.querySelectorAll('.dash-tab').forEach((t, i) => {
-                t.classList.toggle('active', (i === 0 && tab === 'users') || (i === 1 && tab === 'history'));
+                t.classList.toggle('active',
+                    (i === 0 && tab === 'users') ||
+                    (i === 1 && tab === 'history') ||
+                    (i === 2 && tab === 'books')
+                );
             });
+            if (tab === 'books') loadBooks();
         }
 
         // Fetch stats
@@ -320,7 +379,150 @@
         loadStats();
         loadUsers();
         loadHistory();
+        loadBooks();
         lucide.createIcons();
+
+        // ── Book Management ───────────────────────────────────
+        let allBooksData = [];
+        let currentFilter = 'all';
+
+        async function loadBooks() {
+            try {
+                const res = await fetch(`${API}/admin/pending-books?admin_id=${currentUser.id}`);
+                if (!res.ok) return;
+                const d = await res.json();
+                allBooksData = d.books || [];
+
+                // Biểu hiện badge số chờ duyệt
+                const pendingCount = d.pending_count || 0;
+                const badge = document.getElementById('pending-badge');
+                if (badge) {
+                    badge.textContent = pendingCount;
+                    badge.style.display = pendingCount > 0 ? 'inline' : 'none';
+                }
+
+                renderBooks(allBooksData, currentFilter);
+            } catch (e) { console.error(e); }
+        }
+
+        function filterBooks(status) {
+            currentFilter = status;
+            // Update filter button styles
+            ['all','pending','approved','rejected'].forEach(s => {
+                const btn = document.getElementById(`filter-${s}`);
+                if (btn) {
+                    btn.style.background = (s === status) ? 'var(--primary)' : 'rgba(255,255,255,0.08)';
+                    btn.style.color = (s === status) ? 'white' : 'var(--text-muted)';
+                }
+            });
+            renderBooks(allBooksData, status);
+        }
+
+        function renderBooks(books, filter) {
+            const statusLabels = { pending: 'Chờ duyệt', approved: 'Đã duyệt', rejected: 'Từ chối' };
+            const statusColors = { pending: '#f59e0b', approved: '#10b981', rejected: '#ef4444' };
+
+            const filtered = filter === 'all' ? books : books.filter(b => b.status === filter);
+            const tbody = document.getElementById('books-tbody');
+            const empty = document.getElementById('books-empty');
+            tbody.innerHTML = '';
+
+            if (filtered.length === 0) {
+                empty.classList.remove('hidden');
+                return;
+            }
+            empty.classList.add('hidden');
+
+            filtered.forEach((b, i) => {
+                const tr = document.createElement('tr');
+                const date = formatVNDate(b.created_at, false);
+                const statusColor = statusColors[b.status] || '#888';
+                const statusLabel = statusLabels[b.status] || b.status;
+                const shortDesc = b.description ? (b.description.length > 80 ? b.description.slice(0,80) + '…' : b.description) : '—';
+                tr.innerHTML = `
+                    <td>${i + 1}</td>
+                    <td><strong title="${esc(b.title)}">${esc(b.title.length > 30 ? b.title.slice(0,30) + '…' : b.title)}</strong>
+                        <div style="font-size:0.72rem; color:var(--text-dim); margin-top:0.1rem;" title="${esc(b.description || '')}">${esc(shortDesc)}</div>
+                    </td>
+                    <td>${esc(b.author)}</td>
+                    <td><strong>${esc(b.uploaded_by)}</strong></td>
+                    <td>${date}</td>
+                    <td><span style="font-size:0.75rem; font-weight:600; padding:0.2rem 0.6rem; border-radius:20px; background:${statusColor}22; color:${statusColor};">${statusLabel}</span></td>
+                    <td style="display:flex; gap:0.4rem; flex-wrap:wrap;">
+                        ${b.status === 'pending' ? `
+                            <button class="btn-toggle" style="background:#10b981; color:white; font-size:0.75rem; padding:0.25rem 0.6rem;" onclick="approveBook(${b.id})">✓ Duyệt</button>
+                            <button class="btn-toggle" style="background:#ef4444; color:white; font-size:0.75rem; padding:0.25rem 0.6rem;" onclick="rejectBookPrompt(${b.id})">✕ Từ chối</button>
+                        ` : (b.status === 'approved' ? `
+                            <button class="btn-toggle" style="background:#ef4444; color:white; font-size:0.75rem; padding:0.25rem 0.6rem;" onclick="rejectBookPrompt(${b.id})">Rút duyệt</button>
+                        ` : `
+                            <button class="btn-toggle" style="background:#10b981; color:white; font-size:0.75rem; padding:0.25rem 0.6rem;" onclick="approveBook(${b.id})">Duyệt lại</button>
+                        `)}
+                        ${b.url && b.url !== '#' ? `<a href="${b.url}" target="_blank" class="btn-toggle" style="font-size:0.75rem; padding:0.25rem 0.6rem; text-decoration:none;">Link</a>` : ''}
+                    </td>
+                `;
+                tbody.appendChild(tr);
+            });
+            if (window.lucide) lucide.createIcons();
+        }
+
+        async function approveBook(bookId) {
+            try {
+                const res = await fetch(`${API}/admin/books/${bookId}/approve?admin_id=${currentUser.id}`, { method: 'PUT' });
+                if (!res.ok) throw new Error('Lỗi khi duyệt sách');
+                await loadBooks();
+                loadStats();
+            } catch (e) { alert(e.message); }
+        }
+
+        async function rejectBookPrompt(bookId) {
+            const reason = prompt('Lý do từ chối (có thể để trống):');
+            if (reason === null) return; // User cancelled
+            try {
+                const url = `${API}/admin/books/${bookId}/reject?admin_id=${currentUser.id}${reason ? '&reason=' + encodeURIComponent(reason) : ''}`;
+                const res = await fetch(url, { method: 'PUT' });
+                if (!res.ok) throw new Error('Lỗi khi từ chối sách');
+                await loadBooks();
+            } catch (e) { alert(e.message); }
+        }
+
+        async function adminAddBook() {
+            const errEl = document.getElementById('qa-error');
+            const sucEl = document.getElementById('qa-success');
+            errEl.style.display = 'none';
+            sucEl.style.display = 'none';
+
+            const title = document.getElementById('qa-title').value.trim();
+            const author = document.getElementById('qa-author').value.trim();
+            const description = document.getElementById('qa-description').value.trim();
+            const genres = document.getElementById('qa-genres').value.trim();
+            const rating = parseFloat(document.getElementById('qa-rating').value) || 0;
+            const url = document.getElementById('qa-url').value.trim();
+            const imageUrl = document.getElementById('qa-image-url').value.trim();
+
+            if (!title || !author || !url) {
+                errEl.textContent = 'Vui lòng điền Tên sách, Tác giả và Link sách.';
+                errEl.style.display = 'block';
+                return;
+            }
+            try {
+                const res = await fetch(`${API}/books/upload`, {
+                    method: 'POST',
+                    headers: { 'Content-Type': 'application/json' },
+                    body: JSON.stringify({ user_id: currentUser.id, title, author, description, genres, avg_rating: rating, url, image_url: imageUrl || null })
+                });
+                const d = await res.json();
+                if (!res.ok) throw new Error(d.detail || 'Lỗi khi thêm sách');
+                sucEl.textContent = '✓ ' + (d.message || 'Sách đã được thêm vào hệ thống!');
+                sucEl.style.display = 'block';
+                // Clear form
+                ['qa-title','qa-author','qa-description','qa-genres','qa-rating','qa-url','qa-image-url'].forEach(id => { document.getElementById(id).value = ''; });
+                await loadBooks();
+                loadStats();
+            } catch (e) {
+                errEl.textContent = e.message;
+                errEl.style.display = 'block';
+            }
+        }
     </script>
 </body>
 </html>
