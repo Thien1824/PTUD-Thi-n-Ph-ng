@@ -49,7 +49,17 @@ class BookRecommender:
             return
 
         cache_file = self.csv_path.replace('.csv', '_cache.pkl')
+        cache_valid = False
         if not force_rebuild and os.path.exists(cache_file):
+            cache_valid = True
+            if os.path.exists(self.csv_path):
+                csv_mtime = os.path.getmtime(self.csv_path)
+                cache_mtime = os.path.getmtime(cache_file)
+                if csv_mtime > cache_mtime:
+                    print(f"[INFO] CSV file ({self.csv_path}) is newer than cache ({cache_file}). Rebuilding cache...")
+                    cache_valid = False
+
+        if cache_valid:
             print(f"[INFO] Loading cached TF-IDF from: {cache_file}")
             try:
                 with open(cache_file, 'rb') as f:
@@ -402,11 +412,11 @@ class BookRecommender:
             for g in cleaned_genres:
                 genre_counts[g] += 1
 
-        # Lấy 100 thể loại phổ biến nhất
-        top_genres = [g for g, count in genre_counts.most_common(100)]
+        # Lấy toàn bộ thể loại để đảm bảo các thể loại mới được thêm vào CSV luôn xuất hiện
+        all_dataset_genres = list(genre_counts.keys())
         
-        # Gộp các thể loại phổ biến với các thể loại từ cơ sở dữ liệu sách đóng góp
-        combined_genres = set(top_genres).union(db_genres)
+        # Gộp các thể loại từ CSV với các thể loại từ cơ sở dữ liệu sách đóng góp
+        combined_genres = set(all_dataset_genres).union(db_genres)
         
         return sorted(list(combined_genres))
 
